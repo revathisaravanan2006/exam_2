@@ -1,212 +1,215 @@
-import { useState } from 'react'
-import axios from 'axios'
-import './App.css'
+/* eslint-disable react-hooks/immutability */
+/* eslint-disable no-unused-vars */
+// App.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+import Sidebar from './components/Sidebar';
+import ChatWindow from './components/ChatWindow';
+import './App.css';
 
-const API = axios.create({ baseURL: 'http://localhost:8082/api' })
+const api = axios.create({
+  baseURL: 'http://localhost:8082/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-function App() {
-  const [view, setView] = useState('register')
-  const [user, setUser] = useState(null)
-  const [groups, setGroups] = useState([])
-  const [messages, setMessages] = useState([])
+export default function App() {
+  const [me, setMe] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [activeKind, setActiveKind] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '' });
 
-  // Register
-  const [regForm, setRegForm] = useState({ name: '', email: '', password: '', role: 'user' })
-  const handleRegister = async () => {
-    try {
-      const res = await API.post('/users/register', regForm)
-      setUser(res.data)
-      setView('menu')
-    } catch (err) {
-      alert('Register failed: ' + err.message)
+  const activeUser = useMemo(() => {
+    if (activeKind !== 'user') return null;
+    return users.find((u) => String(u.id) === String(activeId));
+  }, [users, activeId, activeKind]);
+
+  const activeGroup = useMemo(() => {
+    if (activeKind !== 'group') return null;
+    return groups.find((g) => String(g.id) === String(activeId));
+  }, [groups, activeId, activeKind]);
+
+  useEffect(() => {
+    if (me) {
+      loadData();
     }
-  }
+  }, [me]);
 
-  // Create Group
-  const [groupName, setGroupName] = useState('')
-  const handleCreateGroup = async () => {
+  const loadData = async () => {
     try {
-      const res = await API.post('/groups', { name: groupName })
-      setGroups([...groups, res.data])
-      setGroupName('')
+      const [usersRes, groupsRes] = await Promise.all([
+        api.get('/users/all'),
+        api.get('/groups/all'),
+      ]);
+      setUsers(usersRes.data || []);
+      setGroups(groupsRes.data || []);
     } catch (err) {
-      alert('Group creation failed: ' + err.message)
+      console.error('Error loading data:', err);
     }
-  }
+  };
 
-  // Add Member
-  const [selectedGroup, setSelectedGroup] = useState(null)
-  const [memberName, setMemberName] = useState('')
-  const handleAddMember = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     try {
-      await API.post(`/groups/${selectedGroup}/members`, { name: memberName })
-      setMemberName('')
-      alert('Member added!')
+      const res = await api.post(`/users/login?email=${loginForm.email}&password=${loginForm.password}`);
+      setMe(res.data);
+      await loadData();
     } catch (err) {
-      alert('Failed to add member: ' + err.message)
+      console.error('Login error:', err);
+      alert('Invalid login credentials');
     }
-  }
+  };
 
-  // Send Direct Message
-  const [recipientId, setRecipientId] = useState('')
-  const [msgContent, setMsgContent] = useState('')
-  const handleSendDirect = async () => {
+  const handleRegister = async (e) => {
+    e.preventDefault();
     try {
-      await API.post(`/users/${user.id}/messages/direct`, { recipientId, content: msgContent })
-      setMsgContent('')
-      alert('Message sent!')
+      const res = await api.post('/users/register', registerForm);
+      setMe(res.data);
+      await loadData();
     } catch (err) {
-      alert('Failed to send: ' + err.message)
+      console.error('Registration error:', err);
+      alert('Registration failed. Email might already exist.');
     }
-  }
+  };
 
-  // Send Group Message
-  const handleSendGroup = async () => {
+  const selectUser = async (user) => {
+    setActiveKind('user');
+    setActiveId(user.id);
     try {
-      await API.post(`/groups/${selectedGroup}/messages`, { sender: user, content: msgContent })
-      setMsgContent('')
-      alert('Group message sent!')
+      const res = await api.get(`/users/${me.id}/messages`);
+      const all = res.data || [];
+      const filtered = all.filter((m) => {
+        const senderId = m?.sender?.id;
+        const recipientId = m?.recipient?.id;
+        return (
+          (String(senderId) === String(me.id) && String(recipientId) === String(user.id)) ||
+          (String(senderId) === String(user.id) && String(recipientId) === String(me.id))
+        );
+      });
+      setMessages(filtered);
     } catch (err) {
-      alert('Failed to send: ' + err.message)
+      console.error('Error fetching user messages:', err);
     }
-  }
+  };
 
-  // Get Group Messages
-  const handleGetGroupMessages = async () => {
+  const selectGroup = async (group) => {
+    setActiveKind('group');
+    setActiveId(group.id);
     try {
-      const res = await API.get(`/groups/${selectedGroup}/messages`)
-      setMessages(res.data)
+      const res = await api.get(`/groups/${group.id}/messages`);
+      setMessages(res.data || []);
     } catch (err) {
-      alert('Failed to fetch messages: ' + err.message)
+      console.error('Error fetching group messages:', err);
     }
+  };
+
+  const sendMessage = async (text) => {
+    if (!text.trim()) return;
+    try {
+      if (activeKind === 'user' && activeUser) {
+        await api.post(`/users/${me.id}/messages/direct`, {
+          recipient: { id: activeUser.id },
+          content: text,
+        });
+        await selectUser(activeUser);
+      } else if (activeKind === 'group' && activeGroup) {
+        await api.post(`/groups/${activeGroup.id}/messages`, {
+          sender: { id: me.id },
+          content: text,
+        });
+        await selectGroup(activeGroup);
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+    }
+  };
+
+  if (!me) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-card__title">Chat App</div>
+          <form className="auth-form" onSubmit={handleLogin}>
+            <input
+              className="auth-form__input"
+              type="email"
+              placeholder="Email"
+              value={loginForm.email}
+              onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+              required
+            />
+            <input
+              className="auth-form__input"
+              type="password"
+              placeholder="Password"
+              value={loginForm.password}
+              onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+              required
+            />
+            <button className="auth-form__button" type="submit">
+              Login
+            </button>
+          </form>
+          <div className="auth-divider">OR</div>
+          <form className="auth-form" onSubmit={handleRegister}>
+            <input
+              className="auth-form__input"
+              type="text"
+              placeholder="Full Name"
+              value={registerForm.name}
+              onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+              required
+            />
+            <input
+              className="auth-form__input"
+              type="email"
+              placeholder="Email"
+              value={registerForm.email}
+              onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+              required
+            />
+            <input
+              className="auth-form__input"
+              type="password"
+              placeholder="Password"
+              value={registerForm.password}
+              onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+              required
+            />
+            <button className="auth-form__button" type="submit">
+              Create Account
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="app">
-      <h1>💬 Chat App</h1>
-      {!user ? (
-        <div className="section">
-          <h2>Register</h2>
-          <input placeholder="Name" value={regForm.name} onChange={(e) => setRegForm({...regForm, name: e.target.value})} />
-          <input placeholder="Email" value={regForm.email} onChange={(e) => setRegForm({...regForm, email: e.target.value})} />
-          <input placeholder="Password" type="password" value={regForm.password} onChange={(e) => setRegForm({...regForm, password: e.target.value})} />
-          <button onClick={handleRegister}>Register</button>
-        </div>
-      ) : (
-        <div>
-          <p>Welcome, {user.name}!</p>
-          <div className="section">
-            <h3>Create Group</h3>
-            <input placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
-            <button onClick={handleCreateGroup}>Create</button>
-          </div>
-
-          <div className="section">
-            <h3>Add Member to Group</h3>
-            <select onChange={(e) => setSelectedGroup(e.target.value)}>
-              <option value="">Select Group</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-            <input placeholder="Member name" value={memberName} onChange={(e) => setMemberName(e.target.value)} />
-            <button onClick={handleAddMember}>Add Member</button>
-          </div>
-
-          <div className="section">
-            <h3>Send Direct Message</h3>
-            <input placeholder="Recipient ID" type="number" value={recipientId} onChange={(e) => setRecipientId(e.target.value)} />
-            <input placeholder="Message" value={msgContent} onChange={(e) => setMsgContent(e.target.value)} />
-            <button onClick={handleSendDirect}>Send</button>
-          </div>
-
-          <div className="section">
-            <h3>Send Group Message</h3>
-            <select onChange={(e) => setSelectedGroup(e.target.value)}>
-              <option value="">Select Group</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-            <input placeholder="Message" value={msgContent} onChange={(e) => setMsgContent(e.target.value)} />
-            <button onClick={handleSendGroup}>Send</button>
-          </div>
-
-          <div className="section">
-            <h3>View Group Messages</h3>
-            <select onChange={(e) => setSelectedGroup(e.target.value)}>
-              <option value="">Select Group</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-            <button onClick={handleGetGroupMessages}>Load Messages</button>
-            <div className="messages">
-              {messages.map(m => <div key={m.id} className="msg">
-                <strong>User {m.sender?.id}:</strong> {m.content} <small>({m.status})</small>
-              </div>)}
-            </div>
-          </div>
-        </div>
-      )}
+      <Sidebar
+        me={me}
+        users={users}
+        groups={groups}
+        activeKind={activeKind}
+        activeId={activeId}
+        onSelectUser={selectUser}
+        onSelectGroup={selectGroup}
+        onRefresh={loadData}
+      />
+      <ChatWindow
+        selectedUser={activeUser}
+        selectedGroup={activeGroup}
+        activeKind={activeKind}
+        messages={messages}
+        currentUserId={me.id}
+        sendMessage={sendMessage}
+      />
     </div>
-  )
+  );
 }
-
-export default App
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
-
-export default App

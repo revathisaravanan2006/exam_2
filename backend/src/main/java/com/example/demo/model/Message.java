@@ -16,9 +16,11 @@ public class Message {
     private Long id;
 
     private String content;
-    private String status;
 
-    private LocalDateTime time = LocalDateTime.now();
+    @Enumerated(EnumType.STRING)
+    private MessageStatus status;
+
+    private LocalDateTime time;
 
     @ManyToOne
     @JoinColumn(name = "sender_id")
@@ -28,5 +30,12 @@ public class Message {
     @JoinColumn(name = "group_id")
     private ChatGroup group;
 
-    private Long recipientId;
+    @ManyToOne
+    @JoinColumn(name = "recipient_id")
+    private User recipient;
+
+    @PrePersist
+    public void onCreate() {
+        this.time = LocalDateTime.now();
+    }
 }

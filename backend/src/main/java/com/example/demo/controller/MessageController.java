@@ -9,51 +9,44 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "http://localhost:5173")
 public class MessageController {
 
-    private final MessageService messageService;
+    private final MessageService service;
 
-    public MessageController(MessageService messageService) {
-        this.messageService = messageService;
+    public MessageController(MessageService service) {
+        this.service = service;
     }
 
     @PostMapping("/users/{senderId}/messages/direct")
-    public ResponseEntity<Message> sendDirect(
-            @PathVariable Long senderId,
-            @RequestBody Message req) {
+    public ResponseEntity<Message> direct(@PathVariable Long senderId,
+                                          @RequestBody Message req) {
 
-        Message msg = messageService.sendDirect(
-                senderId,
-                req.getRecipientId(),
-                req.getContent()
+        Long recipientId = req.getRecipient().getId();
+
+        return ResponseEntity.ok(
+                service.sendDirect(senderId, recipientId, req.getContent())
         );
-
-        return ResponseEntity.ok(msg);
     }
 
     @PostMapping("/groups/{groupId}/messages")
-    public ResponseEntity<Message> sendGroup(
-            @PathVariable Long groupId,
-            @RequestBody Message req) {
+    public ResponseEntity<Message> group(@PathVariable Long groupId,
+                                         @RequestBody Message req) {
 
         Long senderId = req.getSender().getId();
 
-        Message msg = messageService.sendGroup(
-                senderId,
-                groupId,
-                req.getContent()
+        return ResponseEntity.ok(
+                service.sendGroup(senderId, groupId, req.getContent())
         );
-
-        return ResponseEntity.ok(msg);
     }
 
     @GetMapping("/groups/{groupId}/messages")
-    public ResponseEntity<List<Message>> getGroupMessages(@PathVariable Long groupId) {
-        return ResponseEntity.ok(messageService.getGroupMessages(groupId));
+    public ResponseEntity<List<Message>> groupMessages(@PathVariable Long groupId) {
+        return ResponseEntity.ok(service.getGroupMessages(groupId));
     }
 
     @GetMapping("/users/{userId}/messages")
-    public ResponseEntity<List<Message>> getUserMessages(@PathVariable Long userId) {
-        return ResponseEntity.ok(messageService.getUserMessages(userId));
+    public ResponseEntity<List<Message>> userMessages(@PathVariable Long userId) {
+        return ResponseEntity.ok(service.getUserMessages(userId));
     }
 }

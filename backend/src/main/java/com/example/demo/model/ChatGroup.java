@@ -10,15 +10,19 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatGroup {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String name;
+
     private Integer numberOfMembers = 0;
+
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public ChatGroup(String name) {
         this.name = name;
+        this.numberOfMembers = 0;
     }
 }

@@ -10,11 +10,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GroupMember {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name; 
+    private String name;
+
     private LocalDateTime joinedAt = LocalDateTime.now();
 
     @ManyToOne
@@ -25,6 +27,4 @@ public class GroupMember {
         this.name = name;
         this.group = group;
     }
-
-   
 }

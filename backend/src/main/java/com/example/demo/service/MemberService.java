@@ -1,9 +1,7 @@
 package com.example.demo.service;
 
-import com.example.demo.model.ChatGroup;
-import com.example.demo.model.GroupMember;
-import com.example.demo.repository.ChatGroupRepository;
-import com.example.demo.repository.GroupMemberRepository;
+import com.example.demo.model.*;
+import com.example.demo.repository.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,19 +9,18 @@ import java.util.List;
 @Service
 public class MemberService {
 
-    private final GroupMemberRepository memberRepository;
-    private final ChatGroupRepository chatGroupRepository;
+    private final GroupMemberRepository memberRepo;
+    private final ChatGroupRepository groupRepo;
 
-    public MemberService(GroupMemberRepository memberRepository,
-                         ChatGroupRepository chatGroupRepository) {
-        this.memberRepository = memberRepository;
-        this.chatGroupRepository = chatGroupRepository;
+    public MemberService(GroupMemberRepository memberRepo,
+                         ChatGroupRepository groupRepo) {
+        this.memberRepo = memberRepo;
+        this.groupRepo = groupRepo;
     }
 
     public GroupMember addMember(Long groupId, String name) {
 
-        ChatGroup group = chatGroupRepository.findById(groupId)
-                .orElseThrow();
+        ChatGroup group = groupRepo.findById(groupId).orElseThrow();
 
         GroupMember member = new GroupMember(name, group);
 
@@ -32,38 +29,33 @@ public class MemberService {
 
         group.setNumberOfMembers(count + 1);
 
-        chatGroupRepository.save(group);
+        groupRepo.save(group);
 
-        return memberRepository.save(member);
+        return memberRepo.save(member);
     }
 
     public List<GroupMember> getMembersByGroup(Long groupId) {
-
-        ChatGroup group = chatGroupRepository.findById(groupId)
-                .orElseThrow();
-
-        return memberRepository.findByGroup(group);
+        ChatGroup group = groupRepo.findById(groupId).orElseThrow();
+        return memberRepo.findByGroup(group);
     }
 
-    public GroupMember getMemberById(Long memberId) {
-        return memberRepository.findById(memberId)
-                .orElseThrow();
+    public GroupMember getMemberById(Long id) {
+        return memberRepo.findById(id).orElseThrow();
     }
 
-    public void deleteMember(Long memberId) {
+    public void deleteMember(Long id) {
 
-        GroupMember member = memberRepository.findById(memberId)
-                .orElseThrow();
+        GroupMember m = memberRepo.findById(id).orElseThrow();
 
-        ChatGroup group = member.getGroup();
+        ChatGroup g = m.getGroup();
 
-        Integer count = group.getNumberOfMembers();
+        Integer count = g.getNumberOfMembers();
         if (count == null) count = 0;
 
-        group.setNumberOfMembers(count - 1);
+        g.setNumberOfMembers(count - 1);
 
-        chatGroupRepository.save(group);
+        groupRepo.save(g);
 
-        memberRepository.delete(member);
+        memberRepo.delete(m);
     }
 }

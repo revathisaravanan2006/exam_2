@@ -4,45 +4,43 @@ import com.example.demo.model.ChatGroup;
 import com.example.demo.service.ChatGroupService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.bind.annotation.CrossOrigin;
 import java.util.List;
-
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/groups")
 public class GroupController {
 
-    private final ChatGroupService chatGroupService;
+    private final ChatGroupService service;
 
-    public GroupController(ChatGroupService chatGroupService) {
-        this.chatGroupService = chatGroupService;
+    public GroupController(ChatGroupService service) {
+        this.service = service;
     }
 
     @PostMapping
-    public ResponseEntity<ChatGroup> createGroup(@RequestParam String name) {
-        return ResponseEntity.ok(chatGroupService.create(name));
+    public ResponseEntity<ChatGroup> create(@RequestParam String name) {
+        return ResponseEntity.ok(service.create(name));
     }
 
-    @GetMapping("/{groupId}")
-    public ResponseEntity<ChatGroup> getGroupById(@PathVariable Long groupId) {
-        return ResponseEntity.ok(chatGroupService.getGroupById(groupId));
+    @GetMapping("/{id}")
+    public ResponseEntity<ChatGroup> get(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getGroupById(id));
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<ChatGroup>> getAllGroups() {
-        return ResponseEntity.ok(chatGroupService.getAllGroups());
+    public ResponseEntity<List<ChatGroup>> all() {
+        return ResponseEntity.ok(service.getAllGroups());
     }
 
-    @PutMapping("/{groupId}")
-    public ResponseEntity<ChatGroup> updateGroup(
-            @PathVariable Long groupId,
-            @RequestParam String name) {
-
-        return ResponseEntity.ok(chatGroupService.updateGroup(groupId, name));
+    @PutMapping("/{id}")
+    public ResponseEntity<ChatGroup> update(@PathVariable Long id,
+                                           @RequestParam String name) {
+        return ResponseEntity.ok(service.updateGroup(id, name));
     }
 
-    @DeleteMapping("/{groupId}")
-    public ResponseEntity<String> deleteGroup(@PathVariable Long groupId) {
-        chatGroupService.deleteGroup(groupId);
-        return ResponseEntity.ok("Group deleted successfully");
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> delete(@PathVariable Long id) {
+        service.deleteGroup(id);
+        return ResponseEntity.ok("Deleted");
     }
 }

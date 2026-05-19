@@ -1,11 +1,7 @@
 package com.example.demo.service;
 
-import com.example.demo.model.Message;
-import com.example.demo.model.User;
-import com.example.demo.model.ChatGroup;
-import com.example.demo.repository.MessageRepo;
-import com.example.demo.repository.UserRepository;
-import com.example.demo.repository.ChatGroupRepository;
+import com.example.demo.model.*;
+import com.example.demo.repository.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,50 +9,67 @@ import java.util.List;
 @Service
 public class MessageService {
 
-    private final MessageRepo messageRepository;
-    private final UserRepository userRepository;
-    private final ChatGroupRepository chatGroupRepository;
+    private final MessageRepo messageRepo;
+    private final UserRepository userRepo;
+    private final ChatGroupRepository groupRepo;
 
-    public MessageService(MessageRepo messageRepository,
-                          UserRepository userRepository,
-                          ChatGroupRepository chatGroupRepository) {
-        this.messageRepository = messageRepository;
-        this.userRepository = userRepository;
-        this.chatGroupRepository = chatGroupRepository;
+    public MessageService(MessageRepo messageRepo,
+                          UserRepository userRepo,
+                          ChatGroupRepository groupRepo) {
+        this.messageRepo = messageRepo;
+        this.userRepo = userRepo;
+        this.groupRepo = groupRepo;
     }
 
     public Message sendDirect(Long senderId, Long recipientId, String content) {
 
-        User sender = userRepository.findById(senderId).orElseThrow();
+        User sender = userRepo.findById(senderId).orElseThrow();
+        User recipient = userRepo.findById(recipientId).orElseThrow();
 
         Message msg = new Message();
         msg.setContent(content);
         msg.setSender(sender);
-        msg.setRecipientId(recipientId);
-        msg.setStatus("SENT");
+        msg.setRecipient(recipient);
+        msg.setStatus(MessageStatus.SENT);
 
-        return messageRepository.save(msg);
+        return messageRepo.save(msg);
     }
 
     public Message sendGroup(Long senderId, Long groupId, String content) {
 
-        User sender = userRepository.findById(senderId).orElseThrow();
-        ChatGroup group = chatGroupRepository.findById(groupId).orElseThrow();
+        User sender = userRepo.findById(senderId).orElseThrow();
+        ChatGroup group = groupRepo.findById(groupId).orElseThrow();
 
         Message msg = new Message();
         msg.setContent(content);
         msg.setSender(sender);
         msg.setGroup(group);
-        msg.setStatus("SENT");
+        msg.setStatus(MessageStatus.SENT);
 
-        return messageRepository.save(msg);
+        return messageRepo.save(msg);
     }
 
     public List<Message> getGroupMessages(Long groupId) {
-        return messageRepository.findByGroup_IdOrderByTimeAsc(groupId);
+        return messageRepo.findByGroup_IdOrderByTimeAsc(groupId);
     }
 
-    public List<Message> getUserMessages(Long userId) {
-        return messageRepository.findBySender_IdOrRecipientIdOrderByTimeAsc(userId, userId);
+   public List<Message> getUserMessages(Long userId) {
+
+    List<Message> messages =
+            messageRepo.findBySender_IdOrRecipientIdOrderByTimeAsc(userId, userId);
+
+    for (Message msg : messages) {
+
+        if (msg.getRecipient() != null &&
+            msg.getRecipient().getId().equals(userId) &&
+            msg.getStatus() == MessageStatus.SENT) {
+
+            msg.setStatus(MessageStatus.DELIVERED);
+
+            messageRepo.save(msg);
+        }
     }
+
+    return messages;
+}
 }

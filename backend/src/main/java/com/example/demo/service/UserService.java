@@ -20,8 +20,7 @@ public class UserService {
     }
 
     public User login(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow();
+        User user = userRepository.findByEmail(email).orElseThrow();
 
         if (!user.getPassword().equals(password)) {
             throw new RuntimeException("Invalid credentials");
@@ -30,13 +29,12 @@ public class UserService {
         return user;
     }
 
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow();
-    }
-
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public User getUserById(Long id) {
+        return userRepository.findById(id).orElseThrow();
     }
 
     public void deleteUser(Long id) {
@@ -44,13 +42,21 @@ public class UserService {
     }
 
     public User updateUser(Long id, User user) {
-        User existing = userRepository.findById(id)
-                .orElseThrow();
 
+    User existing = userRepository.findById(id).orElseThrow();
+
+    if (user.getName() != null) {
         existing.setName(user.getName());
-        existing.setEmail(user.getEmail());
-        existing.setPassword(user.getPassword());
-
-        return userRepository.save(existing);
     }
+
+    if (user.getEmail() != null) {
+        existing.setEmail(user.getEmail());
+    }
+
+    if (user.getPassword() != null) {
+        existing.setPassword(user.getPassword());
+    }
+
+    return userRepository.save(existing);
+}
 }
