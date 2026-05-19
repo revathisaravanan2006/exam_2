@@ -1,10 +1,9 @@
-/* eslint-disable react-hooks/immutability */
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/immutability */
 // App.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import Sidebar from './components/Sidebar';
-import ChatWindow from './components/ChatWindow';
 import './App.css';
 
 const api = axios.create({
@@ -19,28 +18,58 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [activeKind, setActiveKind] = useState(null);
-  const [activeId, setActiveId] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '' });
 
-  const activeUser = useMemo(() => {
-    if (activeKind !== 'user') return null;
-    return users.find((u) => String(u.id) === String(activeId));
-  }, [users, activeId, activeKind]);
-
-  const activeGroup = useMemo(() => {
-    if (activeKind !== 'group') return null;
-    return groups.find((g) => String(g.id) === String(activeId));
-  }, [groups, activeId, activeKind]);
-
   useEffect(() => {
     if (me) {
-      loadData();
+      loadUsersAndGroups();
     }
   }, [me]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (selectedUser && me) {
+      (selectedUser);
+      markMessagesAsRead(selectedUser);
+      const interval = setInterval(() => {
+        loadMessagesForUser(selectedUser);
+        markMessagesAsRead(selectedUser);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedUser, me]);
+
+  useEffect(() => {
+    if (selectedGroup && me) {
+      loadMessagesForGroup(selectedGroup);
+      const interval = setInterval(() => {
+        loadMessagesForGroup(selectedGroup);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedGroup, me]);
+
+  const markMessagesAsRead = async (user) => {
+    try {loadMessagesForUser
+      const res = await api.get(`/users/${me.id}/messages`);
+      const allMessages = res.data || [];
+      const unreadMessages = allMessages.filter(msg => 
+        msg.sender?.id === user.id && 
+        msg.recipient?.id === me.id && 
+        msg.status !== 'READ'
+      );
+      
+      for (const msg of unreadMessages) {
+        await api.put(`/api/messages/${msg.id}/read`);
+      }
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    }
+  };
+
+  const loadUsersAndGroups = async () => {
     try {
       const [usersRes, groupsRes] = await Promise.all([
         api.get('/users/all'),
@@ -53,12 +82,37 @@ export default function App() {
     }
   };
 
+  const loadMessagesForUser = async (user) => {
+    try {
+      const res = await api.get(`/users/${me.id}/messages`);
+      const allMessages = res.data || [];
+      const filteredMessages = allMessages.filter((msg) => {
+        return (
+          (msg.sender?.id === me.id && msg.recipient?.id === user.id) ||
+          (msg.sender?.id === user.id && msg.recipient?.id === me.id)
+        );
+      });
+      setMessages(filteredMessages);
+    } catch (err) {
+      console.error('Error loading messages:', err);
+    }
+  };
+
+  const loadMessagesForGroup = async (group) => {
+    try {
+      const res = await api.get(`/groups/${group.id}/messages`);
+      setMessages(res.data || []);
+    } catch (err) {
+      console.error('Error loading group messages:', err);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const res = await api.post(`/users/login?email=${loginForm.email}&password=${loginForm.password}`);
       setMe(res.data);
-      await loadData();
+      alert('Login successful!');
     } catch (err) {
       console.error('Login error:', err);
       alert('Invalid login credentials');
@@ -70,62 +124,61 @@ export default function App() {
     try {
       const res = await api.post('/users/register', registerForm);
       setMe(res.data);
-      await loadData();
+      alert('Registration successful!');
     } catch (err) {
       console.error('Registration error:', err);
-      alert('Registration failed. Email might already exist.');
+      alert('Registration failed');
     }
   };
 
-  const selectUser = async (user) => {
-    setActiveKind('user');
-    setActiveId(user.id);
-    try {
-      const res = await api.get(`/users/${me.id}/messages`);
-      const all = res.data || [];
-      const filtered = all.filter((m) => {
-        const senderId = m?.sender?.id;
-        const recipientId = m?.recipient?.id;
-        return (
-          (String(senderId) === String(me.id) && String(recipientId) === String(user.id)) ||
-          (String(senderId) === String(user.id) && String(recipientId) === String(me.id))
-        );
-      });
-      setMessages(filtered);
-    } catch (err) {
-      console.error('Error fetching user messages:', err);
-    }
+  const handleSelectUser = async (user) => {
+    setSelectedUser(user);
+    setSelectedGroup(null);
+    await loadMessagesForUser(user);
+    await markMessagesAsRead(user);
   };
 
-  const selectGroup = async (group) => {
-    setActiveKind('group');
-    setActiveId(group.id);
-    try {
-      const res = await api.get(`/groups/${group.id}/messages`);
-      setMessages(res.data || []);
-    } catch (err) {
-      console.error('Error fetching group messages:', err);
-    }
+  const handleSelectGroup = async (group) => {
+    setSelectedGroup(group);
+    setSelectedUser(null);
+    await loadMessagesForGroup(group);
   };
 
   const sendMessage = async (text) => {
     if (!text.trim()) return;
+    
     try {
-      if (activeKind === 'user' && activeUser) {
+      if (selectedUser) {
         await api.post(`/users/${me.id}/messages/direct`, {
-          recipient: { id: activeUser.id },
+          recipient: { id: selectedUser.id },
           content: text,
         });
-        await selectUser(activeUser);
-      } else if (activeKind === 'group' && activeGroup) {
-        await api.post(`/groups/${activeGroup.id}/messages`, {
+        await loadMessagesForUser(selectedUser);
+      } else if (selectedGroup) {
+        await api.post(`/groups/${selectedGroup.id}/messages`, {
           sender: { id: me.id },
           content: text,
         });
-        await selectGroup(activeGroup);
+        await loadMessagesForGroup(selectedGroup);
+      } else {
+        alert('Please select a user or group first');
       }
     } catch (err) {
       console.error('Error sending message:', err);
+      alert(`Failed to send message: ${err.response?.data || err.message}`);
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'SENT':
+        return <span className="status-sent">✓</span>;
+      case 'DELIVERED':
+        return <span className="status-delivered">✓✓</span>;
+      case 'READ':
+        return <span className="status-read">✓✓</span>;
+      default:
+        return <span className="status-sent">✓</span>;
     }
   };
 
@@ -133,10 +186,9 @@ export default function App() {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <div className="auth-card__title">Chat App</div>
-          <form className="auth-form" onSubmit={handleLogin}>
+          <h1>Chat App</h1>
+          <form onSubmit={handleLogin}>
             <input
-              className="auth-form__input"
               type="email"
               placeholder="Email"
               value={loginForm.email}
@@ -144,29 +196,24 @@ export default function App() {
               required
             />
             <input
-              className="auth-form__input"
               type="password"
               placeholder="Password"
               value={loginForm.password}
               onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
               required
             />
-            <button className="auth-form__button" type="submit">
-              Login
-            </button>
+            <button type="submit">Login</button>
           </form>
-          <div className="auth-divider">OR</div>
-          <form className="auth-form" onSubmit={handleRegister}>
+          <hr />
+          <form onSubmit={handleRegister}>
             <input
-              className="auth-form__input"
               type="text"
-              placeholder="Full Name"
+              placeholder="Name"
               value={registerForm.name}
               onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
               required
             />
             <input
-              className="auth-form__input"
               type="email"
               placeholder="Email"
               value={registerForm.email}
@@ -174,16 +221,13 @@ export default function App() {
               required
             />
             <input
-              className="auth-form__input"
               type="password"
               placeholder="Password"
               value={registerForm.password}
               onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
               required
             />
-            <button className="auth-form__button" type="submit">
-              Create Account
-            </button>
+            <button type="submit">Register</button>
           </form>
         </div>
       </div>
@@ -192,24 +236,97 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar
-        me={me}
-        users={users}
-        groups={groups}
-        activeKind={activeKind}
-        activeId={activeId}
-        onSelectUser={selectUser}
-        onSelectGroup={selectGroup}
-        onRefresh={loadData}
-      />
-      <ChatWindow
-        selectedUser={activeUser}
-        selectedGroup={activeGroup}
-        activeKind={activeKind}
-        messages={messages}
-        currentUserId={me.id}
-        sendMessage={sendMessage}
-      />
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <h2>Chat App</h2>
+          <div className="user-info">
+            <strong>{me.name}</strong>
+            <small>{me.email}</small>
+          </div>
+          <button onClick={loadUsersAndGroups}>Refresh</button>
+        </div>
+        
+        <div className="sidebar-section">
+          <h3>Users</h3>
+          {users.filter(u => u.id !== me.id).map(user => (
+            <div
+              key={user.id}
+              className={`chat-item ${selectedUser?.id === user.id ? 'active' : ''}`}
+              onClick={() => handleSelectUser(user)}
+            >
+              <div className="chat-name">{user.name}</div>
+              <div className="chat-email">{user.email}</div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="sidebar-section">
+          <h3>Groups</h3>
+          {groups.map(group => (
+            <div
+              key={group.id}
+              className={`chat-item ${selectedGroup?.id === group.id ? 'active' : ''}`}
+              onClick={() => handleSelectGroup(group)}
+            >
+              <div className="chat-name">{group.name}</div>
+              <div className="chat-members">{group.numberOfMembers || 0} members</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="chat-window">
+        <div className="chat-header">
+          <h3>
+            {selectedUser?.name || selectedGroup?.name || 'Select a chat'}
+          </h3>
+        </div>
+        
+        <div className="messages-area">
+          {messages.map(msg => (
+            <div
+              key={msg.id}
+              className={`message ${msg.sender?.id === me.id ? 'own' : 'other'}`}
+            >
+              <div className="message-content">{msg.content}</div>
+              <div className="message-footer">
+                <div className="message-time">
+                  {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                </div>
+                {msg.sender?.id === me.id && (
+                  <div className="message-status">
+                    {getStatusIcon(msg.status)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="message-input-area">
+          <input
+            type="text"
+            id="messageInput"
+            placeholder="Type a message..."
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                const input = e.target;
+                sendMessage(input.value);
+                input.value = '';
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              const input = document.getElementById('messageInput');
+              sendMessage(input.value);
+              input.value = '';
+            }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

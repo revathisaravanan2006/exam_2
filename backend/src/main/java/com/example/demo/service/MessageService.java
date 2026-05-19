@@ -53,23 +53,25 @@ public class MessageService {
         return messageRepo.findByGroup_IdOrderByTimeAsc(groupId);
     }
 
-   public List<Message> getUserMessages(Long userId) {
+    public List<Message> getUserMessages(Long userId) {
 
-    List<Message> messages =
-            messageRepo.findBySender_IdOrRecipientIdOrderByTimeAsc(userId, userId);
+        List<Message> messages = messageRepo.findBySender_IdOrRecipientIdOrderByTimeAsc(userId, userId);
 
-    for (Message msg : messages) {
+        for (Message msg : messages) {
+            if (msg.getRecipient() != null &&
+                msg.getRecipient().getId().equals(userId) &&
+                msg.getStatus() == MessageStatus.SENT) {
 
-        if (msg.getRecipient() != null &&
-            msg.getRecipient().getId().equals(userId) &&
-            msg.getStatus() == MessageStatus.SENT) {
-
-            msg.setStatus(MessageStatus.DELIVERED);
-
-            messageRepo.save(msg);
+                msg.setStatus(MessageStatus.DELIVERED);
+                messageRepo.save(msg);
+            }
         }
+
+        return messages;
     }
 
-    return messages;
-}
+    public Message findById(Long id) {
+        return messageRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Message not found with id: " + id));
+    }
 }

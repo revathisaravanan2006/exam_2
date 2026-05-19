@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Message;
+import com.example.demo.model.MessageStatus;
 import com.example.demo.service.MessageService;
+import com.example.demo.repository.MessageRepo;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,9 +15,11 @@ import java.util.List;
 public class MessageController {
 
     private final MessageService service;
+    private final MessageRepo messageRepo;
 
-    public MessageController(MessageService service) {
+    public MessageController(MessageService service, MessageRepo messageRepo) {
         this.service = service;
+        this.messageRepo = messageRepo;
     }
 
     @PostMapping("/users/{senderId}/messages/direct")
@@ -48,5 +52,12 @@ public class MessageController {
     @GetMapping("/users/{userId}/messages")
     public ResponseEntity<List<Message>> userMessages(@PathVariable Long userId) {
         return ResponseEntity.ok(service.getUserMessages(userId));
+    }
+
+    @PutMapping("/messages/{messageId}/read")
+    public ResponseEntity<Message> markAsRead(@PathVariable Long messageId) {
+        Message message = service.findById(messageId);
+        message.setStatus(MessageStatus.READ);
+        return ResponseEntity.ok(messageRepo.save(message));
     }
 }

@@ -7,37 +7,22 @@ export default function MessageInput({ sendMessage, activeKind }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || !activeKind) return;
     sendMessage(text);
     setText('');
   };
-
-  if (!activeKind) {
-    return (
-      <div className="message-input">
-        <input
-          className="message-input__field"
-          type="text"
-          placeholder="Select a chat to start messaging..."
-          disabled
-        />
-        <button className="message-input__button" disabled>
-          Send
-        </button>
-      </div>
-    );
-  }
 
   return (
     <form className="message-input" onSubmit={handleSubmit}>
       <input
         className="message-input__field"
         type="text"
-        placeholder="Type a message..."
+        placeholder={activeKind ? "Type a message..." : "Select a chat to start messaging..."}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        disabled={!activeKind}
       />
-      <button className="message-input__button" type="submit">
+      <button className="message-input__button" type="submit" disabled={!activeKind}>
         Send
       </button>
     </form>

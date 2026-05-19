@@ -30,6 +30,8 @@ export default function Sidebar({
     g.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  console.log('Rendering sidebar with groups:', groups);
+
   return (
     <aside className="sidebar">
       <div className="sidebar__header">
@@ -51,7 +53,7 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar__section">
-        <div className="sidebar__title">Users</div>
+        <div className="sidebar__title">Users ({filteredUsers.length})</div>
         <div className="sidebar__list">
           {filteredUsers.length === 0 ? (
             <div className="sidebar__empty">No users found</div>
@@ -64,7 +66,10 @@ export default function Sidebar({
                     ? 'sidebar__item--active'
                     : ''
                 }`}
-                onClick={() => onSelectUser(u)}
+                onClick={() => {
+                  console.log('User clicked:', u);
+                  onSelectUser(u);
+                }}
               >
                 <div className="sidebar__avatar">{getInitials(u.name)}</div>
                 <div className="sidebar__info">
@@ -78,7 +83,7 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar__section">
-        <div className="sidebar__title">Groups</div>
+        <div className="sidebar__title">Groups ({filteredGroups.length})</div>
         <div className="sidebar__list">
           {filteredGroups.length === 0 ? (
             <div className="sidebar__empty">No groups found</div>
@@ -91,7 +96,10 @@ export default function Sidebar({
                     ? 'sidebar__item--active'
                     : ''
                 }`}
-                onClick={() => onSelectGroup(g)}
+                onClick={() => {
+                  console.log('Group clicked:', g);
+                  onSelectGroup(g);
+                }}
               >
                 <div className="sidebar__avatar sidebar__avatar--group">#</div>
                 <div className="sidebar__info">
