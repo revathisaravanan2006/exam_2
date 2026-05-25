@@ -1,52 +1,58 @@
 /* eslint-disable no-unused-vars */
-// components/MessageList.jsx
-import React, { useRef, useEffect } from 'react';
+import React from "react";
 
-export default function MessageList({ messages, currentUserId }) {
-  const messagesEndRef = useRef(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const formatTime = (dateTimeString) => {
-    if (!dateTimeString) return '';
-    const date = new Date(dateTimeString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  if (!messages || messages.length === 0) {
-    return (
-      <div className="message-list">
-        <div className="empty-chat">
-          <div className="empty-chat__icon">💬</div>
-          <div className="empty-chat__text">No messages yet. Start a conversation!</div>
-        </div>
-      </div>
-    );
-  }
-
+function MessageList({
+  messages,
+  me,
+  messagesEndRef,
+}) {
   return (
-    <div className="message-list">
-      {messages.map((msg) => {
-        const isOwn = msg.sender?.id === currentUserId;
-        return (
-          <div key={msg.id} className={`message ${isOwn ? 'message--own' : ''}`}>
-            <div className="message__bubble">
-              <div className="message__content">{msg.content}</div>
-              <div className="message__meta">
-                <span className="message__time">{formatTime(msg.time)}</span>
-                {isOwn && (
-                  <span className="message__status">
-                    {msg.status === 'READ' ? '✓✓' : msg.status === 'DELIVERED' ? '✓✓' : '✓'}
-                  </span>
-                )}
-              </div>
-            </div>
+    <div className="messages-area">
+      {messages.map((msg) => (
+        <div
+          key={msg.id}
+          className={`message ${
+            msg.sender?.id === me.id
+              ? "own"
+              : "other"
+          }`}
+        >
+          <div className="message-content">
+            {msg.content}
           </div>
-        );
-      })}
-      <div ref={messagesEndRef} />
+
+          <div className="message-footer">
+            <div className="message-time">
+              {msg.time
+                ? new Date(
+                    msg.time
+                  ).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : ""}
+            </div>
+
+            {msg.sender?.id === me.id && (
+              <span
+                className={`message-status ${
+                  msg.status === "READ"
+                    ? "read-status"
+                    : ""
+                }`}
+              >
+                {msg.status === "SENT"
+                  ? "✓"
+                  : "✓✓"}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      <div ref={messagesEndRef}></div>
     </div>
   );
 }
+
+export default MessageList;

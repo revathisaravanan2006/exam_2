@@ -1,30 +1,42 @@
 /* eslint-disable no-unused-vars */
-// components/MessageInput.jsx
-import React, { useState } from 'react';
+import React from "react";
 
-export default function MessageInput({ sendMessage, activeKind }) {
-  const [text, setText] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!text.trim() || !activeKind) return;
-    sendMessage(text);
-    setText('');
-  };
-
+function MessageInput({
+  sendMessage,
+}) {
   return (
-    <form className="message-input" onSubmit={handleSubmit}>
+    <div className="message-input-area">
       <input
-        className="message-input__field"
         type="text"
-        placeholder={activeKind ? "Type a message..." : "Select a chat to start messaging..."}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        disabled={!activeKind}
+        id="messageInput"
+        placeholder="Type message..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const input = e.target;
+
+            sendMessage(input.value);
+
+            input.value = "";
+          }
+        }}
       />
-      <button className="message-input__button" type="submit" disabled={!activeKind}>
+
+      <button
+        onClick={() => {
+          const input =
+            document.getElementById(
+              "messageInput"
+            );
+
+          sendMessage(input.value);
+
+          input.value = "";
+        }}
+      >
         Send
       </button>
-    </form>
+    </div>
   );
 }
+
+export default MessageInput;
